@@ -1,0 +1,11 @@
+node_modules/
+.next/
+.turbo/
+.env*
+.data/
+.DS_Store
+.vscode/
+coverage/
+dist/
+build/
+.vercel/
