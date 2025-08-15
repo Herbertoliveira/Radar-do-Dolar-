@@ -2,6 +2,19 @@
 
 Aplicativo Next.js que monitora USD/BRL com score macro diário, notícias em tempo real, eventos do dia com contagem regressiva e gráfico histórico.
 
+## Deploy (Vercel)
+
+Configure os secrets no repositório GitHub (Settings → Secrets and variables → Actions):
+- `VERCEL_TOKEN`
+- `VERCEL_ORG_ID`
+- `VERCEL_PROJECT_ID`
+
+O workflow `.github/workflows/deploy-vercel.yml` faz deploy automático a cada push na `main`.
+
+## Releases
+
+Crie uma tag `vX.Y.Z` para disparar o workflow `.github/workflows/release.yml` que publica um release com changelog automático.
+
 ## Rodando
 
 1. Instale deps:
