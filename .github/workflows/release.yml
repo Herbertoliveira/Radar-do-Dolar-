@@ -14,11 +14,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Fetch all tags
+        run: git fetch --tags
+
       - name: Generate changelog snippet
         id: changelog
         run: |
-          echo "## Mudanças\n" > RELEASE_NOTES.md
-          git log --pretty=format:'- %s' $(git describe --tags --abbrev=0 --tags --match "v*" 2>/dev/null)..HEAD >> RELEASE_NOTES.md || true
+          echo "## Mudanças" > RELEASE_NOTES.md
+          PREV_TAG=$(git describe --tags --abbrev=0 --match "v*" 2>/dev/null || echo "")
+          if [ -n "$PREV_TAG" ]; then
+            git log --pretty=format:'- %s' $PREV_TAG..HEAD >> RELEASE_NOTES.md
+          else
+            git log --pretty=format:'- %s' >> RELEASE_NOTES.md
+          fi
           cat RELEASE_NOTES.md
 
       - name: Create GitHub Release
@@ -27,3 +35,4 @@ jobs:
           body_path: RELEASE_NOTES.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
