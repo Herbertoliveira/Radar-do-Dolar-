@@ -1,4 +1,4 @@
-name: Deploy to Vercel
+name: Deploy
 
 on:
   push:
@@ -17,22 +17,20 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9 # use a versão que seu projeto usa
+          cache: 'npm'
 
       - name: Install dependencies
-        run: pnpm install
+        run: npm install
 
       - name: Build project
-        run: pnpm build
+        run: npm run build
 
       - name: Deploy to Vercel
-        run: npx vercel --prod --token=${{ secrets.VERCEL_TOKEN }} --scope=${{ secrets.VERCEL_ORG_ID }} --confirm
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          
+        run: |
+          npx vercel deploy \
+            --prod \
+            --confirm \
+            --token=${{ secrets.VERCEL_TOKEN }} \
+            --scope=${{ secrets.VERCEL_ORG_ID }} \
+            --project=${{ secrets.VERCEL_PROJECT_ID }}
+            
