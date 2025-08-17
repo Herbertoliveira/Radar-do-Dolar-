@@ -9,28 +9,26 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    outputs:
-      next-cache-key: ${{ steps.cache-next.outputs.cache-hit }}
-    
+
     steps:
       # 1️⃣ Clonar repositório
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # 2️⃣ Setup Node.js
+      # 2️⃣ Configurar Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '20'
-          cache: 'pnpm'
 
-      # 3️⃣ Instalar pnpm globalmente
-      - name: Install pnpm
-        run: npm install -g pnpm
+      # 3️⃣ Configurar pnpm (garante que está no PATH)
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8 # ajuste para a versão do seu projeto
 
       # 4️⃣ Cache das dependências do pnpm
       - name: Cache pnpm store
-        id: cache-deps
         uses: actions/cache@v3
         with:
           path: ~/.pnpm-store
@@ -43,7 +41,6 @@ jobs:
 
       # 6️⃣ Cache do build do Next.js
       - name: Cache .next
-        id: cache-next
         uses: actions/cache@v3
         with:
           path: .next/cache
@@ -65,21 +62,23 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
+
     steps:
-      # 1️⃣ Checkout
+      # 1️⃣ Clonar repositório
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # 2️⃣ Setup Node.js
+      # 2️⃣ Configurar Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '20'
-          cache: 'pnpm'
 
-      # 3️⃣ Instalar pnpm globalmente
-      - name: Install pnpm
-        run: npm install -g pnpm
+      # 3️⃣ Configurar pnpm
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
 
       # 4️⃣ Restaurar cache do pnpm
       - name: Restore pnpm store
