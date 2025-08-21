@@ -7,41 +7,129 @@ import { getMarketSnapshot } from '@/lib/sources/market';
 import { getMacroSnapshot } from '@/lib/sources/macro';
 import { promises as fs } from 'fs';
 import path from 'path';
+import { apiLogger } from '@/lib/logger';
 
 const cache = new NodeCache({ stdTTL: 60 });
 
-export async function GET(_req: NextRequest) {
+export async function GET(request: NextRequest) {
+	const logger = apiLogger.createRequestLogger('/api/score', 'GET');
+	
+	logger.logInfo({
+		userAgent: request.headers.get('user-agent') || undefined,
+		ip: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || undefined,
+	});
+
 	const cacheKey = 'score-v1';
 	const cached = cache.get(cacheKey);
+	
 	if (cached) {
+		logger.logResponse(200, cached, true, 'cache');
 		return Response.json(cached);
 	}
 
 	const today = DateTime.now().setZone('America/Sao_Paulo').startOf('day');
 
+	logger.logInfo({
+		requestData: { 
+			date: today.toISO(),
+			timezone: 'America/Sao_Paulo',
+			sources: ['market', 'macro']
+		}
+	});
+
 	const [market, macroBase] = await Promise.all([
-		getMarketSnapshot().catch(() => null),
-		getMacroSnapshot().catch(() => null),
+		getMarketSnapshot().catch((error) => {
+			logger.logError(`Market snapshot error: ${error.message}`, {
+				requestData: { source: 'market' }
+			});
+			return null;
+		}),
+		getMacroSnapshot().catch((error) => {
+			logger.logError(`Macro snapshot error: ${error.message}`, {
+				requestData: { source: 'macro' }
+			});
+			return null;
+		}),
 	]);
 
 	const vixQuote = market?.quotes?.['^VIX'];
 	const macro = { ...macroBase, vixAbove20: typeof vixQuote === 'number' ? vixQuote > 20 : macroBase?.vixAbove20 };
 
+	logger.logInfo({
+		requestData: { 
+			marketDataReceived: !!market,
+			macroDataReceived: !!macroBase,
+			vixQuote,
+			vixAbove20: macro.vixAbove20
+		}
+	});
+
 	const { score, bias, brief, factors } = computeScore({ market, macro });
 
+	logger.logInfo({
+		requestData: { 
+			score,
+			bias,
+			brief,
+			factorsCount: factors.length
+		}
+	});
+
 	const todayIso = today.toISODate()!;
-	let history = await loadPersistedHistory().catch(() => [] as ScoreEntry[]);
+	let history = await loadPersistedHistory().catch((error) => {
+		logger.logError(`History load error: ${error.message}`, {
+			requestData: { historyPath: HISTORY_PATH }
+		});
+		return [] as ScoreEntry[];
+	});
 
 	if (!history.length) {
+		logger.logWarn({
+			reason: 'No history found, initializing with placeholder data'
+		});
+		
 		// inicializa histórico com placeholders a partir do score atual
 		history = buildHistory(score, bias, brief, factors, todayIso);
 	}
 
 	history = mergeHistory(history, { date: todayIso, score, label: todayIso, bias, brief, factors });
-	await savePersistedHistory(history);
+	
+	try {
+		await savePersistedHistory(history);
+		logger.logInfo({
+			requestData: { 
+				historyLength: history.length,
+				historySaved: true
+			}
+		});
+	} catch (error: any) {
+		logger.logError(`History save error: ${error.message}`, {
+			requestData: { historyPath: HISTORY_PATH, historyLength: history.length }
+		});
+	}
 
-	const body = { today: history[history.length - 1], history };
+	const body = { 
+		today: history[history.length - 1], 
+		history,
+		metadata: {
+			timestamp: DateTime.now().toISO(),
+			date: todayIso,
+			timezone: 'America/Sao_Paulo',
+			score,
+			bias,
+			factorsCount: factors.length,
+			historyLength: history.length,
+			cacheKey,
+			sources: {
+				market: !!market,
+				macro: !!macroBase
+			}
+		}
+	};
+	
 	cache.set(cacheKey, body);
+	
+	logger.logResponse(200, body, false, 'internal');
 	return Response.json(body);
 }
 
