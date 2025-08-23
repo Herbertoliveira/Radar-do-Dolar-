@@ -16,7 +16,12 @@ type MacroSnapshot = {
 	vixAbove20?: boolean;
 } | null;
 
-export function computeScore({ market, macro }: { market: MarketSnapshot; macro: MacroSnapshot }) {
+export function computeScore({ market, macro }: { market: MarketSnapshot; macro: MacroSnapshot }): {
+	score: number;
+	bias: 'Forte Compra' | 'Compra' | 'Neutro' | 'Venda' | 'Forte Venda';
+	brief: string;
+	factors: string[];
+} {
 	let score = 0;
 	const factors: string[] = [];
 
@@ -81,7 +86,7 @@ export function computeScore({ market, macro }: { market: MarketSnapshot; macro:
 		factors.push('Exportações em alta');
 	}
 
-	const bias = score >= 5 ? 'Forte Compra' : score <= -5 ? 'Forte Venda' : score >= -3 && score <= 3 ? 'Neutro' : score > 0 ? 'Compra' : 'Venda';
+	const bias = score >= 3 ? 'Forte Compra' : score <= -3 ? 'Forte Venda' : score >= -0.9 && score <= 0.9 ? 'Neutro' : score > 0 ? 'Compra' : 'Venda';
 	const brief = describeBias(score, factors);
 	return { score: Math.round(score * 10) / 10, bias, brief, factors };
 }
