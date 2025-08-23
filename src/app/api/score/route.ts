@@ -87,19 +87,29 @@ function buildHistory(
 	brief: string,
 	factors: string[],
 	todayIso: string
-) {
+): ScoreEntry[] {
 	const days = 30;
 	const result = Array.from({ length: days }).map((_, i) => {
 		const date = DateTime.fromISO(todayIso).minus({ days: days - 1 - i }).toISODate()!;
 		const noisy = score + (Math.random() - 0.5) * 2; // pequeno ruído para histórico placeholder
+		const noisyScore = Math.round(noisy * 10) / 10;
+		
+		// Determinar bias baseado no score ruidoso
+		let noisyBias: 'Forte Compra' | 'Compra' | 'Neutro' | 'Venda' | 'Forte Venda';
+		if (noisyScore >= 3) noisyBias = 'Forte Compra';
+		else if (noisyScore > 0) noisyBias = 'Compra';
+		else if (noisyScore <= -3) noisyBias = 'Forte Venda';
+		else if (noisyScore < 0) noisyBias = 'Venda';
+		else noisyBias = 'Neutro';
+		
 		return {
 			date,
-			score: Math.round(noisy * 10) / 10,
+			score: noisyScore,
 			label: date,
-			bias,
+			bias: noisyBias,
 			brief,
 			factors,
 		};
 	});
-	return result as ScoreEntry[];
+	return result;
 }
